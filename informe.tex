@@ -1,6 +1,7 @@
 \documentclass[letterpaper]{article}
 \usepackage[spanish]{babel}
 \usepackage[utf8]{inputenc}
+\usepackage{hyperref}
 \usepackage{mathtools}
 \begin{document}
 	
@@ -56,11 +57,20 @@ y
 
 \[\theta = \arctan{\frac{y}{x}} \]
 
-\subseccion{Límites de Bolivia}
+\subsection{Límites de Bolivia}
 
 Para Bolivia, los valores de \(r\) y \(\theta\) se encuentran en los intervalos siguientes \cite{lesage14a}.
 
 
+
+Para recuperar los datos de límites nacionales\cite{datos:limitenacional}:
+\begin{verbatim}
+wget -O limite_nacional.gml "http://geo.gob.bo/geoserver/fondos/ows \
+                             ?service=WFS&version=1.0.0 \
+                             &request=GetFeature \
+                             &typeName=fondos:limite_nacional \
+                             &outputFormat=GML2"
+\end{verbatim}
 
 \section{Alternativas}
 
@@ -75,6 +85,12 @@ Para Bolivia, los valores de \(r\) y \(\theta\) se encuentran en los intervalos 
   \emph{Normas técnicas para la administración de la información georeferenciada a nivel nacional}.
   Resolución Ministerial Nº~338 del MDRAyMA,
   2007.
+
+\bibitem{datos:limitenacional}
+  Límite Nacional de Bolivia,
+  Formato GML3,
+  GeoBolivia,
+  \url{http://geo.gob.bo/geoserver/fondos/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=fondos:limite_nacional&outputFormat=GML2}
 
 \end{thebibliography}
 
