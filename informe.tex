@@ -1,0 +1,81 @@
+\documentclass[letterpaper]{article}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{mathtools}
+\begin{document}
+	
+
+\title{Evaluación del informe\\"Generación de códigos únicos para unidades geográficas"}
+\author{Sylvain Lesage\\
+  \texttt{slesage@adsib.gob.bo}}
+\date{\today}
+\maketitle
+ 
+\begin{abstract}
+Abstract...
+\end{abstract}
+
+\section{Antecedentes}
+
+\section{Características de la propuesta INE}
+
+Coordenadas en la proyección cónica conforme de Lambert \cite[p.~33]{sunit07}. Ver el cuadro \ref{tab:lambert}.
+
+\begin{table}
+	\centering
+	\begin{tabular}{|l|l|}
+		\hline
+		Falso origen & lat: 24º S, lon: 64º \\
+		Meridiano central & 64º00' Oeste \\
+		Latitud de origen & 24º00' Sur \\
+		1ro Paralelo estándar & 11º30' Sur \\
+		2do Paralelo estándar & 21º30' Sur \\
+		Falso Este & 1.000.000m \\
+		Falso Norte & 0m \\
+		\hline	
+	\end{tabular}
+	\caption{Parámetros de la proyección cónica conforme de Lambert para Bolivia}
+	\label{tab:lambert}
+\end{table}
+
+Cada polígono (manzano, comunidad) esta resumido a un solo punto: su centroide. Se lo calcula con Quantum GIS versión Dufour.
+
+Cálculos - ver programa ... (gitlab)
+
+\subsection{Definición del código}
+
+Dados \(x\) y \(y\) las coordenadas de un punto en la proyección cónica conforme de Lambert, el código único \(z\) esta definido por:
+
+\[z = \lfloor r \exp{\theta} \rfloor\]
+
+donde
+
+\[r = \sqrt{x^2+y^2} \]
+
+y
+
+\[\theta = \arctan{\frac{y}{x}} \]
+
+\subseccion{Límites de Bolivia}
+
+Para Bolivia, los valores de \(r\) y \(\theta\) se encuentran en los intervalos siguientes \cite{lesage14a}.
+
+
+
+\section{Alternativas}
+
+\section{Tabla comparativa entre los códigos}
+
+\section{Conclusión y recomendaciones}
+
+\begin{thebibliography}{99}
+
+\bibitem{sunit07}
+  Sistema Unico de Información de la Tierra,
+  \emph{Normas técnicas para la administración de la información georeferenciada a nivel nacional}.
+  Resolución Ministerial Nº~338 del MDRAyMA,
+  2007.
+
+\end{thebibliography}
+
+\end{document}
