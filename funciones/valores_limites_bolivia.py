@@ -88,6 +88,13 @@ def calcular_franja(lon,lat,nombre,poly_bolivia):
 
 	output.Destroy()
 
+def cargar_capitales():
+	# Abrir el archivo
+	ds = ogr.Open("../datos/capitales_departamentales.gml")
+
+	# Recuperar la primera y unica capa
+	#print ds.GetLayerCount()
+	return ds.GetLayer(0)
 
 #DATA_PATH = os.path.dirname("../datos/")
 #LIMITES_BOLIVIA_PATH = os.path.join(DATA_PATH, 'limite_nacional.gml')
@@ -164,8 +171,20 @@ print "Superficie promedio por codigo (m2) = %d" % area_por_codigo
 print "Lado de un cuadrado de la superficie promedio por codigo (m) = %d" % lado_area_por_codigo
 
 # Tests con La Paz, plaza Murillo
-calcular_franja(-68.13352,-16.49568,"La_Paz_plaza_murillo",poly_bolivia)
-calcular_franja(-63.18213,-17.78339,"Santa_Cruz_plaza_24_de_septiembre",poly_bolivia)
-calcular_franja(-66.15696,-17.39377,"Cochabamba_plaza_14_de_septiembre",poly_bolivia)
-calcular_franja(-68.75364,-11.01827,"Cobija_plaza_german_busch",poly_bolivia)
-calcular_franja(-64.73440,-21.53390,"Tarija_plaza_luis_de_fuentes",poly_bolivia)
+#calcular_franja(-68.13352,-16.49568,"La_Paz_plaza_murillo",poly_bolivia)
+#calcular_franja(-63.18213,-17.78339,"Santa_Cruz_plaza_24_de_septiembre",poly_bolivia)
+#calcular_franja(-66.15696,-17.39377,"Cochabamba_plaza_14_de_septiembre",poly_bolivia)
+#calcular_franja(-68.75364,-11.01827,"Cobija_plaza_german_busch",poly_bolivia)
+#calcular_franja(-64.73440,-21.53390,"Tarija_plaza_luis_de_fuentes",poly_bolivia)
+
+# Capitales
+# Abrir el archivo
+ds = ogr.Open("../datos/capitales_departamentales.gml")
+layer_capitales = ds.GetLayer(0)
+
+capital = layer_capitales.GetNextFeature()
+while capital:
+	geom = capital.GetGeometryRef()
+	calcular_franja(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia)
+	capital.Destroy()
+	capital = layer_capitales.GetNextFeature()
