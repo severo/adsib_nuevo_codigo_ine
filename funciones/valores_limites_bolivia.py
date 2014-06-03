@@ -64,27 +64,28 @@ def codigos_ine_bolivia(poly_bolivia_lambert):
 		vz.append(z)
 
 	# Min y Max
-	print "Valores de x: [%f,%f]" % (min(vx),max(vx))
-	print "Valores de y: [%f,%f]" % (min(vy),max(vy))
-	print "Valores de r: [%f,%f]" % (min(vr),max(vr))
-	print "Valores de tita: [%f,%f]" % (min(vtita),max(vtita))
-	print "Valores de z: [%d,%d]" % (min(vz),max(vz))
+	print "************************************************"
+	print "Analisis del codigo z para Bolivia"
+	print " * Valores de x: [%g,%g]" % (min(vx),max(vx))
+	print " * Valores de y: [%g,%g]" % (min(vy),max(vy))
+	print " * Valores de r: [%g,%g]" % (min(vr),max(vr))
+	print " * Valores de tita: [%g,%g]" % (min(vtita),max(vtita))
+	print " * Valores de z: [%d,%d]" % (min(vz),max(vz))
 
 	# Numero de codigos
 	num_codigos = max(vz) - min(vz)
-	print "Numero de codigos: %d" % num_codigos
+	print " * Numero de codigos: %d" % num_codigos
 
 	# Superficie de Bolivia
 	area_bolivia_calc = poly_bolivia_lambert.GetArea()
 	area_bolivia_ref = 1098581000000.0
-	print "Superficie Bolivia (calculado: m2) = %d" % area_bolivia_calc
-	print "Superficie Bolivia (verdadero: m2) = %d" % area_bolivia_ref
+	print " * Superficie Bolivia: calculado: %gm2, oficial: %gm2" % (area_bolivia_calc,area_bolivia_ref)
 
 	# Superficie por codigo
 	area_por_codigo = area_bolivia_ref/num_codigos
 	lado_area_por_codigo = math.sqrt(area_por_codigo)
-	print "Superficie promedio por codigo (m2) = %d" % area_por_codigo
-	print "Lado de un cuadrado de la superficie promedio por codigo (m) = %d" % lado_area_por_codigo
+	print " * Superficie promedio por codigo (m2) = %g" % area_por_codigo
+	print " * Lado de un cuadrado de la superficie promedio por codigo (m) = %g" % lado_area_por_codigo
 	
 	return (vx,vy,vr,vtita,vz)
 
@@ -148,7 +149,8 @@ def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
 	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
 	print "   * es un 'arco' de %gm de largo" % (poly_intersection.Boundary().Length()/2)
 	print "                   y %gm de ancho (promedio - min=%gm max=%gm)" % (float( sum(vdeltar) ) / len(vdeltar),min(vdeltar),max(vdeltar))
-
+	print "************************************************"
+	
 	poly_intersection.Transform(transfWGS84)
 	f = ogr.Feature(feature_def=franja.GetLayerDefn())
 	f.SetGeometryDirectly(poly_intersection)
