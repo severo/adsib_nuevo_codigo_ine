@@ -92,7 +92,7 @@ def codigos_ine_bolivia(poly_bolivia_lambert):
 # Calcula el codigo INE que pasa por un punto
 def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
 	(r,tita,z) = codigo_ine_wgs84(lon,lat)
-
+	
 	## Generar un SHP con esta franja
 	drv = ogr.GetDriverByName("ESRI Shapefile")
 	outputfile = "../resultados/INE_" + nombre + ".shp"
@@ -156,9 +156,8 @@ def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
 	output.Destroy()
 
 # Calcula el geohash de un punto
-def calcular_geohash(lon,lat,nombre):
-	precision = 9
-	hashcode = geohash.encode(lat,lon,9)
+def calcular_geohash(lon,lat,nombre,num_carac):
+	hashcode = geohash.encode(lat,lon,num_carac)
 
 	## Generar un SHP
 	drv = ogr.GetDriverByName("ESRI Shapefile")
@@ -210,10 +209,18 @@ def calcular_geohash(lon,lat,nombre):
 	output.Destroy()
 
 # Calcula el codigo MGRS de un punto
-def calcular_mgrs(lon,lat,nombre):
+def calcular_mgrs(lon,lat,nombre,num_carac):
 	m = mgrs.MGRS()
+	
+	tabla_precision = {5:0,7:1,9:2,11:3,13:4,15:5}
+	# Ver http://en.wikipedia.org/wiki/Military_grid_reference_system
+	tabla_km = {5:100000,7:10000,9:1000,11:100,13:10,15:1}
+	
+	if num_carac not in tabla_precision:
+		return
+	
 	# Nota: ponemos precision=2 para llegar a un codigo de 9 caracteres
-	mgrscode = m.toMGRS(lat,lon,True,2)
+	mgrscode = m.toMGRS(lat,lon,True,tabla_precision[num_carac])
 		
 	centro = m.toLatLon(mgrscode)
 	pt_centro = ogr.Geometry(ogr.wkbPoint)
@@ -231,7 +238,7 @@ def calcular_mgrs(lon,lat,nombre):
 	y_centro = pt_centro.GetY()
 	
 	# precision = 2 significa precision de 1km
-	prec = 500
+	prec = tabla_km[num_carac]/2
 	
 	## Calcular el espacio con el mismo codigo que el punto
 	ring = ogr.Geometry(ogr.wkbLinearRing)
@@ -273,9 +280,17 @@ def calcular_mgrs(lon,lat,nombre):
 	output.Destroy()
 
 # Calcula el codigo MLOCS (Maidenhead Locator System) de un punto
-def calcular_mlocs(lon,lat,nombre):
-	# Nota: ponemos precision=4 para llegar a un codigo de 8 caracteres
-	mlocscode = mlocs.toMaiden([lat,lon],4)
+def calcular_mlocs(lon,lat,nombre,num_carac):
+	
+	tabla_precision = {2:1,4:2,6:3,8:4,10:5,12:6,14:7}
+	# Ver http://en.wikipedia.org/wiki/Maidenhead_Locator_System#Description_of_the_system
+	tabla_grados_lat = {2:10.0, 4:10.0/10, 6:10.0/(10*24), 8:10.0/(10*24*10), 10:10.0/(10*24*10*24), 12:10.0/(10*24*10*24*10), 14:10.0/(10*24*10*24*10*24)}
+	tabla_grados_lon = {2:20.0, 4:20.0/10, 6:20.0/(10*24), 8:20.0/(10*24*10), 10:20.0/(10*24*10*24), 12:20.0/(10*24*10*24*10), 14:10.0/(10*24*10*24*10*24)}
+	
+	if num_carac not in tabla_precision:
+		return
+		
+	mlocscode = mlocs.toMaiden([lat,lon],tabla_precision[num_carac])
 
 	centro = mlocs.toLoc(mlocscode)
 	x_centro = centro[1]
@@ -289,8 +304,8 @@ def calcular_mlocs(lon,lat,nombre):
 	transfWGS84 = osr.CoordinateTransformation(lambert,wgs84)
 	
 	# precision = 4 significa precision de 15" en lat y 30" en lon
-	precx = 1.0/240
-	precy = 1.0/120
+	precx = tabla_grados_lon[num_carac]
+	precy = tabla_grados_lat[num_carac]
 	
 	## Calcular el espacio con el mismo codigo que el punto
 	ring = ogr.Geometry(ogr.wkbLinearRing)
@@ -374,8 +389,8 @@ capital = layer_capitales.GetNextFeature()
 while capital:
 	geom = capital.GetGeometryRef()
 	calcular_codigo_ine(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia_lambert,vtita)
-	calcular_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
-	calcular_mgrs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
-	calcular_mlocs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
+	calcular_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
+	calcular_mgrs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
+	calcular_mlocs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),8)
 	capital.Destroy()
 	capital = layer_capitales.GetNextFeature()
