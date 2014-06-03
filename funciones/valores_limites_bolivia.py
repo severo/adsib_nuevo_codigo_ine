@@ -464,6 +464,7 @@ font = {'family' : 'serif',
         'size'   : 16,
         }
 
+
 x = range(4,14)
 y_geohash = precision['geohash']
 y_mgrs = precision['mgrs']
@@ -478,7 +479,7 @@ ax.set_yscale('log')
 ax.yaxis.set_major_formatter(tick.FuncFormatter(escala_sistema_metrico))
 
 plt.plot(x, y_ine, 'kD',x, y_geohash, 'ko',x, y_mgrs, 'k^',x, y_mlocs, 'k*')
-plt.title('Precision de cada codigo segun numero de caracteres', fontdict=font)
+plt.title('Precision del codigo segun caracteres (punto en La Paz)', fontdict=font)
 #plt.text(2, 0.65, r'$\cos(2 \pi t) \exp(-t)$', fontdict=font)
 plt.xlabel('Numero de caracteres', fontdict=font)
 plt.ylabel('Precision', fontdict=font)
@@ -490,4 +491,5 @@ plt.legend((r'INE',r'geohash', r'mgrs', r'mlocs'))
 
 plt.grid(True)
 
-plt.show()
+#plt.show()
+plt.savefig("../resultados/precision_codigos.png",format="png")
