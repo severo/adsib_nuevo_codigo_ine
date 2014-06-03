@@ -11,7 +11,6 @@ import geohash
 import math
 import mgrs
 import mlocs
-import pylab
 import numpy as np
 
 def calcular_codigo(lon,lat):
