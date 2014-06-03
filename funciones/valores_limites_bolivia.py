@@ -3,12 +3,13 @@
 # instalar las librerias python mgrs y mlocs:
 #  sudo pip install mgrs
 #  sudo pip install mlocs
-
 import os
 from osgeo import ogr
 import osr
 import geohash
 import math
+import matplotlib.pyplot as plt
+import matplotlib.ticker as tick
 import mgrs
 import mlocs
 import numpy as np
@@ -90,7 +91,11 @@ def codigos_ine_bolivia(poly_bolivia_lambert):
 	return (vx,vy,vr,vtita,vz)
 
 # Calcula el codigo INE que pasa por un punto
-def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
+def codigo_ine(lon,lat,nombre,num_carac):
+	
+	if num_carac != 9:
+		return  '',float('NaN'),float('NaN'),float('NaN')
+
 	(r,tita,z) = codigo_ine_wgs84(lon,lat)
 	
 	## Generar un SHP con esta franja
@@ -140,12 +145,17 @@ def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
 	poly = ogr.Geometry(ogr.wkbPolygon)
 	poly.AddGeometry(ring)
 
-	poly_intersection = poly.Intersection(poly_bolivia)
+	poly_intersection = poly.Intersection(poly_bolivia_lambert)
 
+	superficie = poly_intersection.GetArea()
+	largo = poly_intersection.Boundary().Length()/2
+	ancho = float(sum(vdeltar)) / len(vdeltar)
+	ancho_min = min(vdeltar)
+	ancho_max = max(vdeltar)
 	print "************************************************"
 	print "Codigo INE z - " + nombre + ":"
 	print " * valor: %d" % z
-	print " * area equi-codigo: arco de %gm2, %gm de largo por %gm de ancho promedio (min=%gm max=%gm)" % (poly_intersection.GetArea(),poly_intersection.Boundary().Length()/2,float( sum(vdeltar) ) / len(vdeltar),min(vdeltar),max(vdeltar))
+	print " * area equi-codigo: arco de %gm2, %gm de largo por %gm de ancho promedio (min=%gm max=%gm)" % (superficie,largo,ancho,ancho_min,ancho_max)
 	print "************************************************"
 	
 	poly_intersection.Transform(transfWGS84)
@@ -154,9 +164,11 @@ def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
 	franja.CreateFeature(f)
 
 	output.Destroy()
+	
+	return z,superficie,largo,ancho
 
 # Calcula el geohash de un punto
-def calcular_geohash(lon,lat,nombre,num_carac):
+def codigo_geohash(lon,lat,nombre,num_carac):
 	hashcode = geohash.encode(lat,lon,num_carac)
 
 	## Generar un SHP
@@ -196,10 +208,13 @@ def calcular_geohash(lon,lat,nombre,num_carac):
 	nortesur.Transform(transfLambert)
 	oesteeste.Transform(transfLambert)
 	
+	superficie = poly_intersection.GetArea()
+	ns = nortesur.Length()
+	oe = oesteeste.Length()
 	print "************************************************"
 	print "Codigo geohash - " + nombre + ":"
 	print " * valor: " + hashcode
-	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (poly_intersection.GetArea(),nortesur.Length(),oesteeste.Length())
+	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (superficie,ns,oe)
 	print "************************************************"
 
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
@@ -207,9 +222,11 @@ def calcular_geohash(lon,lat,nombre,num_carac):
 	layer.CreateFeature(f)
 
 	output.Destroy()
+	
+	return hashcode,superficie,ns,oe
 
 # Calcula el codigo MGRS de un punto
-def calcular_mgrs(lon,lat,nombre,num_carac):
+def codigo_mgrs(lon,lat,nombre,num_carac):
 	m = mgrs.MGRS()
 	
 	tabla_precision = {5:0,7:1,9:2,11:3,13:4,15:5}
@@ -217,7 +234,7 @@ def calcular_mgrs(lon,lat,nombre,num_carac):
 	tabla_km = {5:100000,7:10000,9:1000,11:100,13:10,15:1}
 	
 	if num_carac not in tabla_precision:
-		return
+		return '',float('NaN'),float('NaN'),float('NaN')
 	
 	# Nota: ponemos precision=2 para llegar a un codigo de 9 caracteres
 	mgrscode = m.toMGRS(lat,lon,True,tabla_precision[num_carac])
@@ -266,10 +283,13 @@ def calcular_mgrs(lon,lat,nombre,num_carac):
 	output = drv.CreateDataSource(outputfile)
 	layer = output.CreateLayer("MGRS", geom_type=ogr.wkbPolygon)
 
+	superficie = poly_intersection.GetArea()
+	ns = nortesur.Length()
+	oe = oesteeste.Length()
 	print "************************************************"
 	print "Codigo mgrs - " + nombre + ":"
 	print " * valor: " + mgrscode
-	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (poly_intersection.GetArea(),nortesur.Length(),oesteeste.Length())
+	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (superficie,ns,oe)
 	print "************************************************"
 
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
@@ -279,8 +299,10 @@ def calcular_mgrs(lon,lat,nombre,num_carac):
 	
 	output.Destroy()
 
+	return mgrscode,superficie,ns,oe
+	
 # Calcula el codigo MLOCS (Maidenhead Locator System) de un punto
-def calcular_mlocs(lon,lat,nombre,num_carac):
+def codigo_mlocs(lon,lat,nombre,num_carac):
 	
 	tabla_precision = {2:1,4:2,6:3,8:4,10:5,12:6,14:7}
 	# Ver http://en.wikipedia.org/wiki/Maidenhead_Locator_System#Description_of_the_system
@@ -288,7 +310,7 @@ def calcular_mlocs(lon,lat,nombre,num_carac):
 	tabla_grados_lon = {2:20.0, 4:20.0/10, 6:20.0/(10*24), 8:20.0/(10*24*10), 10:20.0/(10*24*10*24), 12:20.0/(10*24*10*24*10), 14:10.0/(10*24*10*24*10*24)}
 	
 	if num_carac not in tabla_precision:
-		return
+		return '',float('NaN'),float('NaN'),float('NaN')
 		
 	mlocscode = mlocs.toMaiden([lat,lon],tabla_precision[num_carac])
 
@@ -337,10 +359,13 @@ def calcular_mlocs(lon,lat,nombre,num_carac):
 	output = drv.CreateDataSource(outputfile)
 	layer = output.CreateLayer("MLOCS", geom_type=ogr.wkbPolygon)
 
+	superficie = poly_intersection.GetArea()
+	ns = nortesur.Length()
+	oe = oesteeste.Length()
 	print "************************************************"
 	print "Codigo mlocs - " + nombre + ":"
 	print " * valor: " + mlocscode
-	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (poly_intersection.GetArea(),nortesur.Length(),oesteeste.Length())
+	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (superficie,ns,oe)
 	print "************************************************"
 
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
@@ -348,6 +373,18 @@ def calcular_mlocs(lon,lat,nombre,num_carac):
 	layer.CreateFeature(f)
 	
 	output.Destroy()
+
+	return mlocscode,superficie,ns,oe
+
+def codigo(algo,lon,lat,nombre,num_carac):
+	if algo == "geohash":
+		return codigo_geohash(lon,lat,nombre,num_carac)
+	elif algo == "mgrs":
+		return codigo_mgrs(lon,lat,nombre,num_carac)
+	elif algo == "mlocs":
+		return codigo_mlocs(lon,lat,nombre,num_carac)
+	elif algo == "ine":
+		return codigo_ine(lon,lat,nombre,num_carac)
 
 def cargar_capitales():
 	# Abrir el archivo
@@ -388,9 +425,69 @@ layer_capitales = ds.GetLayer(0)
 capital = layer_capitales.GetNextFeature()
 while capital:
 	geom = capital.GetGeometryRef()
-	calcular_codigo_ine(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia_lambert,vtita)
-	calcular_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
-	calcular_mgrs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
-	calcular_mlocs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),8)
+	codigo_ine(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
+	codigo_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
+	codigo_mgrs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
+	codigo_mlocs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),8)
+	
+	if capital.GetFieldAsString("NOMBRE") == "LA PAZ":
+		code = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
+		superficie = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
+		precision = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
+		nortesur = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
+		oesteeste = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
+		for algo in ['geohash','mgrs','mlocs','ine']:
+			for num_carac in range(4,14):			
+				c,s,n,o = codigo(algo,geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),num_carac)				
+				code[algo].append(c)
+				superficie[algo].append(s)
+				precision[algo].append(math.sqrt(s))
+				nortesur[algo].append(n)
+				oesteeste[algo].append(o)
 	capital.Destroy()
 	capital = layer_capitales.GetNextFeature()
+
+## Graficos
+
+def escala_sistema_metrico(l,pos):
+	if l >= 1000:
+		return "%d km" % (l/1000)
+	elif l >= 1:
+		return "%d m" % l
+	elif l >= 0.001:
+		return "%d mm" % (l*1000)
+	else:
+		return "%f mm" % l
+
+font = {'family' : 'serif',
+        'weight' : 'normal',
+        'size'   : 16,
+        }
+
+x = range(4,14)
+y_geohash = precision['geohash']
+y_mgrs = precision['mgrs']
+y_mlocs = precision['mlocs']
+y_ine = precision['ine']
+
+fig = plt.figure()
+ax = fig.add_subplot(1,1,1)
+ax.set_yscale('log')
+#ax.yaxis.set_major_formatter(tick.ScalarFormatter())
+#ax.yaxis.set_major_formatter(tick.FormatStrFormatter('%d'))
+ax.yaxis.set_major_formatter(tick.FuncFormatter(escala_sistema_metrico))
+
+plt.plot(x, y_ine, 'kD',x, y_geohash, 'ko',x, y_mgrs, 'k^',x, y_mlocs, 'k*')
+plt.title('Precision de cada codigo segun numero de caracteres', fontdict=font)
+#plt.text(2, 0.65, r'$\cos(2 \pi t) \exp(-t)$', fontdict=font)
+plt.xlabel('Numero de caracteres', fontdict=font)
+plt.ylabel('Precision', fontdict=font)
+#plt.yscale('log')
+# Tweak spacing to prevent clipping of ylabel
+plt.subplots_adjust(left=0.15)
+plt.xlim(3.5,13.5)
+plt.legend((r'INE',r'geohash', r'mgrs', r'mlocs'))
+
+plt.grid(True)
+
+plt.show()
