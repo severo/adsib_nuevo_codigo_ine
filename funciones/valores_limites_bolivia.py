@@ -13,25 +13,84 @@ import mgrs
 import mlocs
 import numpy as np
 
-def calcular_codigo(lon,lat):
-	# Definir la proyeccion conica conforme de Lambert de Bolivia
+def transf_wgs84_lambert(sentido=0):
+	# WGS84
+	wgs84 = osr.SpatialReference()
+	wgs84.ImportFromEPSG(4326)
+	# Proyeccion conica conforme de Lambert de Bolivia
 	lambert = osr.SpatialReference()
 	lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+	# Tranformaciones
+	if (sentido==0):
+		return osr.CoordinateTransformation(wgs84,lambert)
+	else:
+		return osr.CoordinateTransformation(lambert,wgs84)
 
-	# Reproyectar en Lambert
-	SpatialRefTransform = osr.CoordinateTransformation(origSpatialRef,lambert)
-	x,y,z = SpatialRefTransform.TransformPoint(lon, lat, 0)
+def wgs84_to_lambert():
+	return transf_wgs84_lambert(sentido=0)
 
-	# Calcular r y tita
+def lambert_to_wgs84():
+	return transf_wgs84_lambert(sentido=1)
+	
+def codigo_ine_lambert(x,y):
+	# Calcular r, tita y z
 	r = math.sqrt(x**2+ y**2)
 	tita = np.arctan(y/x)+np.pi
 	z = math.floor(r * math.exp(tita))
 
 	return (r,tita,z)
 
+def codigo_ine_wgs84(lon,lat):
+	x,y,z = wgs84_to_lambert().TransformPoint(lon, lat, 0)
+	
+	return codigo_ine_lambert(x,y)
+
+def codigos_ine_bolivia(poly_bolivia_lambert):
+	# Calcular r y tita para cada punto
+	pts = poly_bolivia_lambert.GetGeometryRef(0)
+	vx = []
+	vy = []
+	vr = []
+	vtita = []
+	vz = []
+	for p in xrange(pts.GetPointCount()):
+		x = pts.GetX(p)
+		y = pts.GetY(p)
+		r,tita,z = codigo_ine_lambert(x,y)
+		vx.append(x)
+		vy.append(y)
+		vr.append(r)
+		vtita.append(tita)
+		vz.append(z)
+
+	# Min y Max
+	print "Valores de x: [%f,%f]" % (min(vx),max(vx))
+	print "Valores de y: [%f,%f]" % (min(vy),max(vy))
+	print "Valores de r: [%f,%f]" % (min(vr),max(vr))
+	print "Valores de tita: [%f,%f]" % (min(vtita),max(vtita))
+	print "Valores de z: [%d,%d]" % (min(vz),max(vz))
+
+	# Numero de codigos
+	num_codigos = max(vz) - min(vz)
+	print "Numero de codigos: %d" % num_codigos
+
+	# Superficie de Bolivia
+	area_bolivia_calc = poly_bolivia_lambert.GetArea()
+	area_bolivia_ref = 1098581000000.0
+	print "Superficie Bolivia (calculado: m2) = %d" % area_bolivia_calc
+	print "Superficie Bolivia (verdadero: m2) = %d" % area_bolivia_ref
+
+	# Superficie por codigo
+	area_por_codigo = area_bolivia_ref/num_codigos
+	lado_area_por_codigo = math.sqrt(area_por_codigo)
+	print "Superficie promedio por codigo (m2) = %d" % area_por_codigo
+	print "Lado de un cuadrado de la superficie promedio por codigo (m) = %d" % lado_area_por_codigo
+	
+	return (vx,vy,vr,vtita,vz)
+
 # Calcula el codigo INE que pasa por un punto
-def calcular_codigo_ine(lon,lat,nombre,poly_bolivia):
-	(r,tita,z) = calcular_codigo(lon,lat)
+def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
+	(r,tita,z) = codigo_ine_wgs84(lon,lat)
 
 	## Generar un SHP con esta franja
 	drv = ogr.GetDriverByName("ESRI Shapefile")
@@ -86,9 +145,9 @@ def calcular_codigo_ine(lon,lat,nombre,poly_bolivia):
 	print "Codigo INE z - " + nombre + ":"
 	print " * valor: %d" % z
 	print " * area equi-codigo:"
-	print "   * superficie: %fm2 (equivalente de un cuadrado de %fm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
-	print "   * es un 'arco' de %fkm de largo" % (poly_intersection.Boundary().Length()/2)
-	print "                   y %fm de ancho (promedio - min=%fm max=%fm)" % (float( sum(vdeltar) ) / len(vdeltar),min(vdeltar),max(vdeltar))
+	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
+	print "   * es un 'arco' de %gm de largo" % (poly_intersection.Boundary().Length()/2)
+	print "                   y %gm de ancho (promedio - min=%gm max=%gm)" % (float( sum(vdeltar) ) / len(vdeltar),min(vdeltar),max(vdeltar))
 
 	poly_intersection.Transform(transfWGS84)
 	f = ogr.Feature(feature_def=franja.GetLayerDefn())
@@ -292,89 +351,31 @@ def cargar_capitales():
 	ds = ogr.Open("../datos/capitales_departamentales.gml")
 
 	# Recuperar la primera y unica capa
-	#print ds.GetLayerCount()
 	return ds.GetLayer(0)
 
-#DATA_PATH = os.path.dirname("../datos/")
-#LIMITES_BOLIVIA_PATH = os.path.join(DATA_PATH, 'limite_nacional.gml')
-DATA_PATH = os.path.dirname("../datos/BOL_adm/")
-LIMITES_BOLIVIA_PATH = os.path.join(DATA_PATH, 'BOL_adm0.shp')
+def cargar_poly_bolivia_lambert():
+	DATA_PATH = os.path.dirname("../datos/BOL_adm/")
+	LIMITES_BOLIVIA_PATH = os.path.join(DATA_PATH, 'BOL_adm0.shp')
 
-# Abrir el archivo
-ds = ogr.Open(LIMITES_BOLIVIA_PATH)
-print "Archivo: %s" % ds.GetName()
+	# Abrir el archivo
+	ds = ogr.Open(LIMITES_BOLIVIA_PATH)
 
-# Recuperar la primera y unica capa
-layer = ds.GetLayer(0)
-print "Capa: %s" % layer.GetName()
-origSpatialRef = layer.GetSpatialRef()
+	# Recuperar la primera y unica capa
+	layer = ds.GetLayer(0)
 
-# Recuperar la geometria del unico "feature"
-feature = layer.GetFeature(0)
-poly_bolivia = feature.GetGeometryRef()
-#poly_bolivia.CloseRings()
-#pol = ogr.Geometry(ogr.wkbPolygon)
-#pol.AddGeometry(poly_bolivia)
-#print pol.GetGeometryName()
+	# Recuperar la geometria del unico "feature"
+	feature = layer.GetFeature(0)
+	poly_bolivia = feature.GetGeometryRef()
 
-# Definir la proyeccion conica conforme de Lambert de Bolivia
-lambert = osr.SpatialReference()
-lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+	# Reproyectar en Lambert
+	poly_bolivia.Transform(wgs84_to_lambert())
 
-# Reproyectar en Lambert
-SpatialRefTransform = osr.CoordinateTransformation(origSpatialRef,lambert)
-poly_bolivia.Transform(SpatialRefTransform)
+	return poly_bolivia.Clone()
 
-# Calcular r y tita para cada punto
-pts = poly_bolivia.GetGeometryRef(0)
-vx = []
-vy = []
-vr = []
-vtita = []
-vz = []
-for p in xrange(pts.GetPointCount()):
-	x = pts.GetX(p)
-	y = pts.GetY(p)
-	r = math.sqrt(x**2+ y**2)
-	tita = np.arctan(y/x)+np.pi
-	z = math.floor(r * math.exp(tita))
-	
-	vx.append(x)
-	vy.append(y)
-	vr.append(r)
-	vtita.append(tita)
-	vz.append(z)
 
-# Min y Max
+poly_bolivia_lambert = cargar_poly_bolivia_lambert()
 
-print "Valores de x: [%f,%f]" % (min(vx),max(vx))
-print "Valores de y: [%f,%f]" % (min(vy),max(vy))
-print "Valores de r: [%f,%f]" % (min(vr),max(vr))
-print "Valores de tita: [%f,%f]" % (min(vtita),max(vtita))
-print "Valores de z: [%d,%d]" % (min(vz),max(vz))
-
-# Numero de codigos
-num_codigos = max(vz) - min(vz)
-print "Numero de codigos: %d" % num_codigos
-
-# Superficie de Bolivia
-area_bolivia_calc = poly_bolivia.GetArea()
-area_bolivia_ref = 1098581000000.0
-print "Superficie Bolivia (calculado: m2) = %d" % area_bolivia_calc
-print "Superficie Bolivia (verdadero: m2) = %d" % area_bolivia_ref
-
-# Superficie por codigo
-area_por_codigo = area_bolivia_ref/num_codigos
-lado_area_por_codigo = math.sqrt(area_por_codigo)
-print "Superficie promedio por codigo (m2) = %d" % area_por_codigo
-print "Lado de un cuadrado de la superficie promedio por codigo (m) = %d" % lado_area_por_codigo
-
-# Tests con La Paz, plaza Murillo
-#calcular_franja(-68.13352,-16.49568,"La_Paz_plaza_murillo",poly_bolivia)
-#calcular_franja(-63.18213,-17.78339,"Santa_Cruz_plaza_24_de_septiembre",poly_bolivia)
-#calcular_franja(-66.15696,-17.39377,"Cochabamba_plaza_14_de_septiembre",poly_bolivia)
-#calcular_franja(-68.75364,-11.01827,"Cobija_plaza_german_busch",poly_bolivia)
-#calcular_franja(-64.73440,-21.53390,"Tarija_plaza_luis_de_fuentes",poly_bolivia)
+vx,vy,vr,vtita,vz = codigos_ine_bolivia(poly_bolivia_lambert)
 
 # Capitales
 # Abrir el archivo
@@ -384,7 +385,7 @@ layer_capitales = ds.GetLayer(0)
 capital = layer_capitales.GetNextFeature()
 while capital:
 	geom = capital.GetGeometryRef()
-	calcular_codigo_ine(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia)
+	calcular_codigo_ine(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia_lambert,vtita)
 	calcular_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
 	calcular_mgrs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
 	calcular_mlocs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
