@@ -378,31 +378,60 @@ utilizados.
 		Criterio & Código MGRS (Military grid reference system)\footnote{ver 
 		\url{http://en.wikipedia.org/wiki/Military_grid_reference_system}} \\
 		\hline
-		código para la Paz & 6mpd1mz3n \\
-		tamaño del código & variable - letras y cifras (36 
-		posibilidades por carácter) \\
+		código para la Paz & 19KEB9276 \\
+		tamaño del código & variable - 5 letras y cifras, luego cifras 
+		por par \\
 		tamaño de las zonas equi-código para 9 caracteres (La Paz) & 
-		\(\numprint{21}\,\mathrm{m^{2}}\), 
-		equivalente a un cuadrado de \(\numprint{4.6}\,\mathrm{m}\) de lado \\
+		\(\numprint{1000000}\,\mathrm{m^{2}}\), 
+		equivalente a un cuadrado de \(\numprint{1000}\,\mathrm{m}\) de lado \\
 		forma de las zonas equi-código (La Paz) & rectángulo: 
-		\(\numprint{4.7}\,\mathrm{m}\) (norte-sur) por 
-		\(\numprint{4.5}\,\mathrm{m}\) (oeste-este) \\
-		precisión incremental con el tamaño del código & sí, cada 
-		carácter aumenta el nivel de precisión\footnote{ver 
-		\url{http://en.wikipedia.org/wiki/Geohash\#Worked_example}} \\
-		cálculo del código & codificación de latitud y longitud en 
-		base32 \\
-		cálculo de proximidad & no es lo más adecuado\footnote{ver 
-		\url{http://en.wikipedia.org/wiki/Geohash\#Limitations}} \\
-		respaldo científico & no encontré \\
-		herramientas disponibles & librerías para xx lenguajes\footnote{ver 
+		\(\numprint{1000}\,\mathrm{m}\) (norte-sur) por 
+		\(\numprint{1000}\,\mathrm{m}\) (oeste-este) \\
+		precisión incremental con el tamaño del código & sí, cada dos 
+		cifras dividen la superficie por 100 (o el lado del cuadrado 
+		por 10)\footnote{ver 
+		\url{http://en.wikipedia.org/wiki/Military_grid_reference_system}} \\
+		cálculo del código & conversión en UTM \\
+		cálculo de proximidad & ? \\
+		respaldo científico & DMA Technical Manual 8358.1, Chapter 3. Datums, Ellipsoids, Grids, and Grid Reference Systems \\
+		herramientas disponibles & librerías GeographicLib y 
+		GeoConvert/mgrs en 9 lenguajes\footnote{ver 
 		\url{https://pypi.python.org/pypi/mgrs} para python} \\
 		\hline
 	\end{tabular}
 	\caption{Características del código MGRS}
-	\label{tab:carac_geohash}
+	\label{tab:carac_mgrs}
 \end{table}
 
+\begin{table}
+	\centering
+	\begin{tabular}{|l|l|l|l|l|}
+		\hline
+		Criterio & Código MLocS (Maidenhead Locator System)\footnote{ver 
+		\url{http://en.wikipedia.org/wiki/Maidenhead_Locator_System}} \\
+		\hline
+		código para la Paz & FH53WM32 \\
+		tamaño del código & variable, con letras y cifras \\
+		tamaño de las zonas equi-código para 8 caracteres (La Paz) & 
+		\(\numprint{1628640}\,\mathrm{m^{2}}\), 
+		equivalente a un cuadrado de \(\numprint{1276}\,\mathrm{m}\) de lado \\
+		forma de las zonas equi-código (La Paz) & rectángulo: 
+		\(\numprint{1837}\,\mathrm{m}\) (norte-sur) por 
+		\(\numprint{886}\,\mathrm{m}\) (oeste-este) \\
+		precisión incremental con el tamaño del código & sí, cada dos 
+		cifras aumentan la precisión (un vez dividiendo por 10, la 
+		otra por 24) \\
+		cálculo del código & codificación de las divisiones en grados, 
+		minutos, etc. en WGS84 \\
+		cálculo de proximidad & ? \\
+		respaldo científico & R. J. Eckersley, G4FTJ (1985). Amateur Radio Operating Manual (third edition). Potters bar, UK: Radio Society of Great Britain. pp. 64–66. ISBN 0-900612-69-X. \\
+		herramientas disponibles & librerías en python (mlocs), perl, 
+		basic, y esta implementado en varios dispositivos GPS \\
+		\hline
+	\end{tabular}
+	\caption{Características del código MLocS}
+	\label{tab:carac_mlocs}
+\end{table}
 
 \section{Tabla comparativa entre los códigos}
 

@@ -1,7 +1,8 @@
 # Para hacer funcionar con Debian
 #  sudo aptitude install python-geohash python-gdal python-pip
-# instalar la libreria python mgrs:
+# instalar las librerias python mgrs y mlocs:
 #  sudo pip install mgrs
+#  sudo pip install mlocs
 
 import os
 from osgeo import ogr
@@ -9,6 +10,8 @@ import osr
 from copy import deepcopy
 import geohash
 import math
+import mgrs
+import mlocs
 import pylab
 import numpy as np
 
@@ -97,11 +100,11 @@ def calcular_codigo_ine(lon,lat,nombre,poly_bolivia):
 	output.Destroy()
 
 # Calcula el geohash de un punto
-def calcular_geohash(lon,lat,nombre,poly_bolivia):
+def calcular_geohash(lon,lat,nombre):
 	precision = 9
 	hashcode = geohash.encode(lat,lon,9)
 
-	## Generar un SHP con esta franja
+	## Generar un SHP
 	drv = ogr.GetDriverByName("ESRI Shapefile")
 	outputfile = "../resultados/geohash_" + nombre + ".shp"
 	if os.path.exists(outputfile):
@@ -152,6 +155,138 @@ def calcular_geohash(lon,lat,nombre,poly_bolivia):
 	f.SetGeometryDirectly(poly)
 	layer.CreateFeature(f)
 
+	output.Destroy()
+
+# Calcula el codigo MGRS de un punto
+def calcular_mgrs(lon,lat,nombre):
+	m = mgrs.MGRS()
+	# Nota: ponemos precision=2 para llegar a un codigo de 9 caracteres
+	mgrscode = m.toMGRS(lat,lon,True,2)
+		
+	centro = m.toLatLon(mgrscode)
+	pt_centro = ogr.Geometry(ogr.wkbPoint)
+	pt_centro.AddPoint(centro[1], centro[0])
+	
+	lambert = osr.SpatialReference()
+	lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+	wgs84 = osr.SpatialReference()
+	wgs84.ImportFromEPSG(4326)
+	transfLambert = osr.CoordinateTransformation(wgs84,lambert)
+	transfWGS84 = osr.CoordinateTransformation(lambert,wgs84)
+
+	pt_centro.Transform(transfLambert)
+	x_centro = pt_centro.GetX()
+	y_centro = pt_centro.GetY()
+	
+	# precision = 2 significa precision de 1km
+	prec = 500
+	
+	## Calcular el espacio con el mismo codigo que el punto
+	ring = ogr.Geometry(ogr.wkbLinearRing)
+	ring.AddPoint(x_centro-prec,y_centro-prec)
+	ring.AddPoint(x_centro+prec,y_centro-prec)
+	ring.AddPoint(x_centro+prec,y_centro+prec)
+	ring.AddPoint(x_centro-prec,y_centro+prec)
+	ring.AddPoint(x_centro-prec,y_centro-prec)
+	poly = ogr.Geometry(ogr.wkbPolygon)
+	poly.AddGeometry(ring)
+	poly_intersection = poly.Clone()
+	
+	nortesur = ogr.Geometry(ogr.wkbLineString)
+	nortesur.AddPoint(x_centro+prec,y_centro-prec)
+	nortesur.AddPoint(x_centro+prec,y_centro+prec)
+	oesteeste = ogr.Geometry(ogr.wkbLineString)
+	oesteeste.AddPoint(x_centro-prec,y_centro-prec)
+	oesteeste.AddPoint(x_centro+prec,y_centro-prec)
+	
+	## Generar un SHP
+	drv = ogr.GetDriverByName("ESRI Shapefile")
+	outputfile = "../resultados/mgrs_" + nombre + ".shp"
+	if os.path.exists(outputfile):
+		drv.DeleteDataSource(outputfile)
+	output = drv.CreateDataSource(outputfile)
+	layer = output.CreateLayer("MGRS", geom_type=ogr.wkbPolygon)
+
+	print "************************************************"
+	print "Codigo mgrs - " + nombre + ":"
+	print " * valor: " + mgrscode
+	print " * area equi-codigo:"
+	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
+	print "   * es un rectangulo de perimetro de %gm" % (poly_intersection.Boundary().Length())
+	print "                      con tamano norte-sur de %gm" % (nortesur.Length())
+	print "                      con tamano oeste-este de %gm" % (oesteeste.Length())
+	print "************************************************"
+
+	f = ogr.Feature(feature_def=layer.GetLayerDefn())
+	poly.Transform(transfWGS84)
+	f.SetGeometryDirectly(poly)
+	layer.CreateFeature(f)
+	
+	output.Destroy()
+
+# Calcula el codigo MLOCS (Maidenhead Locator System) de un punto
+def calcular_mlocs(lon,lat,nombre):
+	# Nota: ponemos precision=4 para llegar a un codigo de 8 caracteres
+	mlocscode = mlocs.toMaiden([lat,lon],4)
+
+	centro = mlocs.toLoc(mlocscode)
+	x_centro = centro[1]
+	y_centro = centro[0]
+	
+	lambert = osr.SpatialReference()
+	lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+	wgs84 = osr.SpatialReference()
+	wgs84.ImportFromEPSG(4326)
+	transfLambert = osr.CoordinateTransformation(wgs84,lambert)
+	transfWGS84 = osr.CoordinateTransformation(lambert,wgs84)
+	
+	# precision = 4 significa precision de 15" en lat y 30" en lon
+	precx = 1.0/240
+	precy = 1.0/120
+	
+	## Calcular el espacio con el mismo codigo que el punto
+	ring = ogr.Geometry(ogr.wkbLinearRing)
+	ring.AddPoint(x_centro-precx,y_centro-precy)
+	ring.AddPoint(x_centro+precx,y_centro-precy)
+	ring.AddPoint(x_centro+precx,y_centro+precy)
+	ring.AddPoint(x_centro-precx,y_centro+precy)
+	ring.AddPoint(x_centro-precx,y_centro-precy)
+	poly = ogr.Geometry(ogr.wkbPolygon)
+	poly.AddGeometry(ring)
+	poly_intersection = poly.Clone()
+	
+	nortesur = ogr.Geometry(ogr.wkbLineString)
+	nortesur.AddPoint(x_centro+precx,y_centro-precy)
+	nortesur.AddPoint(x_centro+precx,y_centro+precy)
+	oesteeste = ogr.Geometry(ogr.wkbLineString)
+	oesteeste.AddPoint(x_centro-precx,y_centro-precy)
+	oesteeste.AddPoint(x_centro+precx,y_centro-precy)
+
+	poly_intersection.Transform(transfLambert)
+	nortesur.Transform(transfLambert)
+	oesteeste.Transform(transfLambert)
+	
+	## Generar un SHP
+	drv = ogr.GetDriverByName("ESRI Shapefile")
+	outputfile = "../resultados/mlocs_" + nombre + ".shp"
+	if os.path.exists(outputfile):
+		drv.DeleteDataSource(outputfile)
+	output = drv.CreateDataSource(outputfile)
+	layer = output.CreateLayer("MLOCS", geom_type=ogr.wkbPolygon)
+
+	print "************************************************"
+	print "Codigo mlocs - " + nombre + ":"
+	print " * valor: " + mlocscode
+	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
+	print "   * es un rectangulo de perimetro de %gm" % (poly_intersection.Boundary().Length())
+	print "                      con tamano norte-sur de %gm" % (nortesur.Length())
+	print "                      con tamano oeste-este de %gm" % (oesteeste.Length())
+	print "************************************************"
+
+	f = ogr.Feature(feature_def=layer.GetLayerDefn())
+	f.SetGeometryDirectly(poly)
+	layer.CreateFeature(f)
+	
 	output.Destroy()
 
 def cargar_capitales():
@@ -252,6 +387,8 @@ capital = layer_capitales.GetNextFeature()
 while capital:
 	geom = capital.GetGeometryRef()
 	calcular_codigo_ine(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia)
-	calcular_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia)
+	calcular_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
+	calcular_mgrs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
+	calcular_mlocs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"))
 	capital.Destroy()
 	capital = layer_capitales.GetNextFeature()
