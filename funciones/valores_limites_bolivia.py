@@ -145,10 +145,7 @@ def calcular_codigo_ine(lon,lat,nombre,poly_bolivia,vtita):
 	print "************************************************"
 	print "Codigo INE z - " + nombre + ":"
 	print " * valor: %d" % z
-	print " * area equi-codigo:"
-	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
-	print "   * es un 'arco' de %gm de largo" % (poly_intersection.Boundary().Length()/2)
-	print "                   y %gm de ancho (promedio - min=%gm max=%gm)" % (float( sum(vdeltar) ) / len(vdeltar),min(vdeltar),max(vdeltar))
+	print " * area equi-codigo: arco de %gm2, %gm de largo por %gm de ancho promedio (min=%gm max=%gm)" % (poly_intersection.GetArea(),poly_intersection.Boundary().Length()/2,float( sum(vdeltar) ) / len(vdeltar),min(vdeltar),max(vdeltar))
 	print "************************************************"
 	
 	poly_intersection.Transform(transfWGS84)
@@ -203,11 +200,7 @@ def calcular_geohash(lon,lat,nombre):
 	print "************************************************"
 	print "Codigo geohash - " + nombre + ":"
 	print " * valor: " + hashcode
-	print " * area equi-codigo:"
-	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
-	print "   * es un rectangulo de perimetro de %gm" % (poly_intersection.Boundary().Length())
-	print "                      con tamano norte-sur de %gm" % (nortesur.Length())
-	print "                      con tamano oeste-este de %gm" % (oesteeste.Length())
+	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (poly_intersection.GetArea(),nortesur.Length(),oesteeste.Length())
 	print "************************************************"
 
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
@@ -269,11 +262,7 @@ def calcular_mgrs(lon,lat,nombre):
 	print "************************************************"
 	print "Codigo mgrs - " + nombre + ":"
 	print " * valor: " + mgrscode
-	print " * area equi-codigo:"
-	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
-	print "   * es un rectangulo de perimetro de %gm" % (poly_intersection.Boundary().Length())
-	print "                      con tamano norte-sur de %gm" % (nortesur.Length())
-	print "                      con tamano oeste-este de %gm" % (oesteeste.Length())
+	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (poly_intersection.GetArea(),nortesur.Length(),oesteeste.Length())
 	print "************************************************"
 
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
@@ -336,10 +325,7 @@ def calcular_mlocs(lon,lat,nombre):
 	print "************************************************"
 	print "Codigo mlocs - " + nombre + ":"
 	print " * valor: " + mlocscode
-	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
-	print "   * es un rectangulo de perimetro de %gm" % (poly_intersection.Boundary().Length())
-	print "                      con tamano norte-sur de %gm" % (nortesur.Length())
-	print "                      con tamano oeste-este de %gm" % (oesteeste.Length())
+	print " * area equi-codigo: rectangulo de %gm2, lado NS: %gm, OE: %gm" % (poly_intersection.GetArea(),nortesur.Length(),oesteeste.Length())
 	print "************************************************"
 
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
