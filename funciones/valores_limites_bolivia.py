@@ -1,7 +1,13 @@
+# Para hacer funcionar con Debian
+#  sudo aptitude install python-geohash python-gdal python-pip
+# instalar la libreria python mgrs:
+#  sudo pip install mgrs
+
 import os
 from osgeo import ogr
 import osr
 from copy import deepcopy
+import geohash
 import math
 import pylab
 import numpy as np
@@ -22,13 +28,13 @@ def calcular_codigo(lon,lat):
 
 	return (r,tita,z)
 
-# Calcula la franja que pasa por un punto
-def calcular_franja(lon,lat,nombre,poly_bolivia):
+# Calcula el codigo INE que pasa por un punto
+def calcular_codigo_ine(lon,lat,nombre,poly_bolivia):
 	(r,tita,z) = calcular_codigo(lon,lat)
 
 	## Generar un SHP con esta franja
 	drv = ogr.GetDriverByName("ESRI Shapefile")
-	outputfile = "../resultados/" + nombre + ".shp"
+	outputfile = "../resultados/INE_" + nombre + ".shp"
 	if os.path.exists(outputfile):
 		drv.DeleteDataSource(outputfile)
 	output = drv.CreateDataSource(outputfile)
@@ -76,15 +82,75 @@ def calcular_franja(lon,lat,nombre,poly_bolivia):
 	poly_intersection = poly.Intersection(poly_bolivia)
 
 	print "************************************************"
-	print "La franja que pasa por " + nombre + ":"
-	print " * tiene una superficie de %dm2 (equivalente de un cuadrado de %dm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
-	print " * es un 'arco' de %dkm de largo" % (poly_intersection.Boundary().Length()/2000)
-	print "                 y %.2fcm de ancho (promedio - min=%.2fcm max=%.2fcm)" % (float( sum(vdeltar) ) / len(vdeltar)*100,min(vdeltar)*100,max(vdeltar)*100)
+	print "Codigo INE z - " + nombre + ":"
+	print " * valor: %d" % z
+	print " * area equi-codigo:"
+	print "   * superficie: %fm2 (equivalente de un cuadrado de %fm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
+	print "   * es un 'arco' de %fkm de largo" % (poly_intersection.Boundary().Length()/2)
+	print "                   y %fm de ancho (promedio - min=%fm max=%fm)" % (float( sum(vdeltar) ) / len(vdeltar),min(vdeltar),max(vdeltar))
 
 	poly_intersection.Transform(transfWGS84)
 	f = ogr.Feature(feature_def=franja.GetLayerDefn())
 	f.SetGeometryDirectly(poly_intersection)
 	franja.CreateFeature(f)
+
+	output.Destroy()
+
+# Calcula el geohash de un punto
+def calcular_geohash(lon,lat,nombre,poly_bolivia):
+	precision = 9
+	hashcode = geohash.encode(lat,lon,9)
+
+	## Generar un SHP con esta franja
+	drv = ogr.GetDriverByName("ESRI Shapefile")
+	outputfile = "../resultados/geohash_" + nombre + ".shp"
+	if os.path.exists(outputfile):
+		drv.DeleteDataSource(outputfile)
+	output = drv.CreateDataSource(outputfile)
+	layer = output.CreateLayer("GeoHash", geom_type=ogr.wkbPolygon)
+
+	## Calcular el espacio con el mismo codigo que el punto
+	box = geohash.bbox(hashcode)
+
+	ring = ogr.Geometry(ogr.wkbLinearRing)
+	ring.AddPoint(box['w'],box['n'])
+	ring.AddPoint(box['e'],box['n'])
+	ring.AddPoint(box['e'],box['s'])
+	ring.AddPoint(box['w'],box['s'])
+	ring.AddPoint(box['w'],box['n'])
+	poly = ogr.Geometry(ogr.wkbPolygon)
+	poly.AddGeometry(ring)
+	poly_intersection = poly.Clone()
+	
+	nortesur = ogr.Geometry(ogr.wkbLineString)
+	nortesur.AddPoint(box['w'],box['n'])
+	nortesur.AddPoint(box['w'],box['s'])
+	oesteeste = ogr.Geometry(ogr.wkbLineString)
+	oesteeste.AddPoint(box['w'],box['n'])
+	oesteeste.AddPoint(box['e'],box['n'])
+	
+	lambert = osr.SpatialReference()
+	lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
+	wgs84 = osr.SpatialReference()
+	wgs84.ImportFromEPSG(4326)
+	transfLambert = osr.CoordinateTransformation(wgs84,lambert)
+	poly_intersection.Transform(transfLambert)
+	nortesur.Transform(transfLambert)
+	oesteeste.Transform(transfLambert)
+	
+	print "************************************************"
+	print "Codigo geohash - " + nombre + ":"
+	print " * valor: " + hashcode
+	print " * area equi-codigo:"
+	print "   * superficie: %gm2 (equivalente de un cuadrado de %gm de lado)" % (poly_intersection.GetArea(),math.sqrt(poly_intersection.GetArea()))
+	print "   * es un rectangulo de perimetro de %gm" % (poly_intersection.Boundary().Length())
+	print "                      con tamano norte-sur de %gm" % (nortesur.Length())
+	print "                      con tamano oeste-este de %gm" % (oesteeste.Length())
+	print "************************************************"
+
+	f = ogr.Feature(feature_def=layer.GetLayerDefn())
+	f.SetGeometryDirectly(poly)
+	layer.CreateFeature(f)
 
 	output.Destroy()
 
@@ -185,6 +251,7 @@ layer_capitales = ds.GetLayer(0)
 capital = layer_capitales.GetNextFeature()
 while capital:
 	geom = capital.GetGeometryRef()
-	calcular_franja(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia)
+	calcular_codigo_ine(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia)
+	calcular_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),poly_bolivia)
 	capital.Destroy()
 	capital = layer_capitales.GetNextFeature()
