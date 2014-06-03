@@ -7,7 +7,6 @@
 import os
 from osgeo import ogr
 import osr
-from copy import deepcopy
 import geohash
 import math
 import mgrs
