@@ -7,6 +7,7 @@
 #  sudo mv build/mlocs/Library/Python/2.7/site-packages/mlocs /usr/local/lib/python2.7/dist-packages/
 #  sudo chown root:staff /usr/local/lib/python2.7/dist-packages/mlocs
 #  sudo rm -rf build
+
 import os
 from osgeo import ogr
 import osr
@@ -36,18 +37,16 @@ def wgs84_to_lambert():
 
 def lambert_to_wgs84():
 	return transf_wgs84_lambert(sentido=1)
-	
+
 def codigo_ine_lambert(x,y):
 	# Calcular r, tita y z
 	r = math.sqrt(x**2+ y**2)
 	tita = np.arctan(y/x)+np.pi
 	z = math.floor(r * math.exp(tita))
-
 	return (r,tita,z)
 
 def codigo_ine_wgs84(lon,lat):
 	x,y,z = wgs84_to_lambert().TransformPoint(lon, lat, 0)
-	
 	return codigo_ine_lambert(x,y)
 
 def codigos_ine_bolivia(poly_bolivia_lambert):
@@ -91,17 +90,17 @@ def codigos_ine_bolivia(poly_bolivia_lambert):
 	lado_area_por_codigo = math.sqrt(area_por_codigo)
 	print " * Superficie promedio por codigo (m2) = %g" % area_por_codigo
 	print " * Lado de un cuadrado de la superficie promedio por codigo (m) = %g" % lado_area_por_codigo
-	
+
 	return (vx,vy,vr,vtita,vz)
 
 # Calcula el codigo INE que pasa por un punto
 def codigo_ine(lon,lat,nombre,num_carac):
-	
+
 	if num_carac != 9:
 		return  '',float('NaN'),float('NaN'),float('NaN')
 
 	(r,tita,z) = codigo_ine_wgs84(lon,lat)
-	
+
 	## Generar un SHP con esta franja
 	drv = ogr.GetDriverByName("ESRI Shapefile")
 	outputfile = "../resultados/INE_" + nombre + ".shp"
@@ -161,14 +160,13 @@ def codigo_ine(lon,lat,nombre,num_carac):
 	print " * valor: %d" % z
 	print " * area equi-codigo: arco de %gm2, %gm de largo por %gm de ancho promedio (min=%gm max=%gm)" % (superficie,largo,ancho,ancho_min,ancho_max)
 	print "************************************************"
-	
+
 	poly_intersection.Transform(transfWGS84)
 	f = ogr.Feature(feature_def=franja.GetLayerDefn())
 	f.SetGeometryDirectly(poly_intersection)
 	franja.CreateFeature(f)
-
 	output.Destroy()
-	
+
 	return z,superficie,largo,ancho
 
 # Calcula el geohash de un punto
@@ -195,14 +193,14 @@ def codigo_geohash(lon,lat,nombre,num_carac):
 	poly = ogr.Geometry(ogr.wkbPolygon)
 	poly.AddGeometry(ring)
 	poly_intersection = poly.Clone()
-	
+
 	nortesur = ogr.Geometry(ogr.wkbLineString)
 	nortesur.AddPoint(box['w'],box['n'])
 	nortesur.AddPoint(box['w'],box['s'])
 	oesteeste = ogr.Geometry(ogr.wkbLineString)
 	oesteeste.AddPoint(box['w'],box['n'])
 	oesteeste.AddPoint(box['e'],box['n'])
-	
+
 	lambert = osr.SpatialReference()
 	lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
 	wgs84 = osr.SpatialReference()
@@ -211,7 +209,7 @@ def codigo_geohash(lon,lat,nombre,num_carac):
 	poly_intersection.Transform(transfLambert)
 	nortesur.Transform(transfLambert)
 	oesteeste.Transform(transfLambert)
-	
+
 	superficie = poly_intersection.GetArea()
 	ns = nortesur.Length()
 	oe = oesteeste.Length()
@@ -224,29 +222,28 @@ def codigo_geohash(lon,lat,nombre,num_carac):
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
 	f.SetGeometryDirectly(poly)
 	layer.CreateFeature(f)
-
 	output.Destroy()
-	
+
 	return hashcode,superficie,ns,oe
 
 # Calcula el codigo MGRS de un punto
 def codigo_mgrs(lon,lat,nombre,num_carac):
 	m = mgrs.MGRS()
-	
+
 	tabla_precision = {5:0,7:1,9:2,11:3,13:4,15:5}
 	# Ver http://en.wikipedia.org/wiki/Military_grid_reference_system
 	tabla_km = {5:100000,7:10000,9:1000,11:100,13:10,15:1}
-	
+
 	if num_carac not in tabla_precision:
 		return '',float('NaN'),float('NaN'),float('NaN')
-	
+
 	# Nota: ponemos precision=2 para llegar a un codigo de 9 caracteres
 	mgrscode = m.toMGRS(lat,lon,True,tabla_precision[num_carac])
-		
+
 	centro = m.toLatLon(mgrscode)
 	pt_centro = ogr.Geometry(ogr.wkbPoint)
 	pt_centro.AddPoint(centro[1], centro[0])
-	
+
 	lambert = osr.SpatialReference()
 	lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
 	wgs84 = osr.SpatialReference()
@@ -257,10 +254,10 @@ def codigo_mgrs(lon,lat,nombre,num_carac):
 	pt_centro.Transform(transfLambert)
 	x_centro = pt_centro.GetX()
 	y_centro = pt_centro.GetY()
-	
+
 	# precision = 2 significa precision de 1km
 	prec = tabla_km[num_carac]/2
-	
+
 	## Calcular el espacio con el mismo codigo que el punto
 	ring = ogr.Geometry(ogr.wkbLinearRing)
 	ring.AddPoint(x_centro-prec,y_centro-prec)
@@ -271,14 +268,14 @@ def codigo_mgrs(lon,lat,nombre,num_carac):
 	poly = ogr.Geometry(ogr.wkbPolygon)
 	poly.AddGeometry(ring)
 	poly_intersection = poly.Clone()
-	
+
 	nortesur = ogr.Geometry(ogr.wkbLineString)
 	nortesur.AddPoint(x_centro+prec,y_centro-prec)
 	nortesur.AddPoint(x_centro+prec,y_centro+prec)
 	oesteeste = ogr.Geometry(ogr.wkbLineString)
 	oesteeste.AddPoint(x_centro-prec,y_centro-prec)
 	oesteeste.AddPoint(x_centro+prec,y_centro-prec)
-	
+
 	## Generar un SHP
 	drv = ogr.GetDriverByName("ESRI Shapefile")
 	outputfile = "../resultados/mgrs_" + nombre + ".shp"
@@ -300,39 +297,38 @@ def codigo_mgrs(lon,lat,nombre,num_carac):
 	poly.Transform(transfWGS84)
 	f.SetGeometryDirectly(poly)
 	layer.CreateFeature(f)
-	
 	output.Destroy()
 
 	return mgrscode,superficie,ns,oe
 	
 # Calcula el codigo MLOCS (Maidenhead Locator System) de un punto
 def codigo_mlocs(lon,lat,nombre,num_carac):
-	
+
 	tabla_precision = {2:1,4:2,6:3,8:4,10:5,12:6,14:7}
 	# Ver http://en.wikipedia.org/wiki/Maidenhead_Locator_System#Description_of_the_system
 	tabla_grados_lat = {2:10.0, 4:10.0/10, 6:10.0/(10*24), 8:10.0/(10*24*10), 10:10.0/(10*24*10*24), 12:10.0/(10*24*10*24*10), 14:10.0/(10*24*10*24*10*24)}
 	tabla_grados_lon = {2:20.0, 4:20.0/10, 6:20.0/(10*24), 8:20.0/(10*24*10), 10:20.0/(10*24*10*24), 12:20.0/(10*24*10*24*10), 14:10.0/(10*24*10*24*10*24)}
-	
+
 	if num_carac not in tabla_precision:
 		return '',float('NaN'),float('NaN'),float('NaN')
-		
+
 	mlocscode = mlocs.toMaiden([lat,lon],tabla_precision[num_carac])
 
 	centro = mlocs.toLoc(mlocscode)
 	x_centro = centro[1]
 	y_centro = centro[0]
-	
+
 	lambert = osr.SpatialReference()
 	lambert.ImportFromProj4("+proj=lcc +lat_1=-11.5 +lat_2=-21.5 +lat_0=-24 +lon_0=-64 +x_0=1000000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
 	wgs84 = osr.SpatialReference()
 	wgs84.ImportFromEPSG(4326)
 	transfLambert = osr.CoordinateTransformation(wgs84,lambert)
 	transfWGS84 = osr.CoordinateTransformation(lambert,wgs84)
-	
+
 	# precision = 4 significa precision de 15" en lat y 30" en lon
 	precx = tabla_grados_lon[num_carac]
 	precy = tabla_grados_lat[num_carac]
-	
+
 	## Calcular el espacio con el mismo codigo que el punto
 	ring = ogr.Geometry(ogr.wkbLinearRing)
 	ring.AddPoint(x_centro-precx,y_centro-precy)
@@ -343,7 +339,7 @@ def codigo_mlocs(lon,lat,nombre,num_carac):
 	poly = ogr.Geometry(ogr.wkbPolygon)
 	poly.AddGeometry(ring)
 	poly_intersection = poly.Clone()
-	
+
 	nortesur = ogr.Geometry(ogr.wkbLineString)
 	nortesur.AddPoint(x_centro+precx,y_centro-precy)
 	nortesur.AddPoint(x_centro+precx,y_centro+precy)
@@ -354,7 +350,7 @@ def codigo_mlocs(lon,lat,nombre,num_carac):
 	poly_intersection.Transform(transfLambert)
 	nortesur.Transform(transfLambert)
 	oesteeste.Transform(transfLambert)
-	
+
 	## Generar un SHP
 	drv = ogr.GetDriverByName("ESRI Shapefile")
 	outputfile = "../resultados/mlocs_" + nombre + ".shp"
@@ -375,7 +371,6 @@ def codigo_mlocs(lon,lat,nombre,num_carac):
 	f = ogr.Feature(feature_def=layer.GetLayerDefn())
 	f.SetGeometryDirectly(poly)
 	layer.CreateFeature(f)
-	
 	output.Destroy()
 
 	return mlocscode,superficie,ns,oe
@@ -433,7 +428,7 @@ while capital:
 	codigo_geohash(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
 	codigo_mgrs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),9)
 	codigo_mlocs(geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),8)
-	
+
 	if capital.GetFieldAsString("NOMBRE") == "LA PAZ":
 		code = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
 		superficie = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
@@ -441,8 +436,8 @@ while capital:
 		nortesur = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
 		oesteeste = {'geohash': [],'mgrs': [],'mlocs': [],'ine': []}
 		for algo in ['geohash','mgrs','mlocs','ine']:
-			for num_carac in range(4,14):			
-				c,s,n,o = codigo(algo,geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),num_carac)				
+			for num_carac in range(4,14):
+				c,s,n,o = codigo(algo,geom.GetX(),geom.GetY(),capital.GetFieldAsString("NOMBRE"),num_carac)
 				code[algo].append(c)
 				superficie[algo].append(s)
 				precision[algo].append(math.sqrt(s))
