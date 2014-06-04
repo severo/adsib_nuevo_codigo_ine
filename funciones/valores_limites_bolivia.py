@@ -531,11 +531,11 @@ for algo in ['ine','geohash','mgrs','mlocs']:
 		dup[algo] = {}
 
 	for num_carac in range(0,14):
-		print num_carac
+		num_puntos = 0
 		for row in csv.DictReader(file('../datos/INE/localidades.csv'),delimiter=','):
 			lat = float(row['Y'])
 			lon = float(row['X'])
-
+			num_puntos +=1
 			c = codigo(algo,lon,lat,"test",num_carac,True)
 
 			if num_carac not in code[algo]:
@@ -545,13 +545,16 @@ for algo in ['ine','geohash','mgrs','mlocs']:
 
 			if c:
 				if c in code[algo][num_carac]:
-					dup[algo][num_carac] += 1
+					if dup[algo][num_carac] == 0:
+						dup[algo][num_carac] = 2
+					else:
+						dup[algo][num_carac] += 1
 				code[algo][num_carac][c] = code[algo][num_carac].get(c,0) + 1
 
 		for row in csv.DictReader(file('../datos/INE/manzanas.csv'),delimiter=','):
 			lat = float(row['lat'])
 			lon = float(row['long'])
-
+			num_puntos +=1
 			c = codigo(algo,lon,lat,"test",num_carac,True)
 
 			if num_carac not in code[algo]:
@@ -561,9 +564,11 @@ for algo in ['ine','geohash','mgrs','mlocs']:
 
 			if c:
 				if c in code[algo][num_carac]:
-					dup[algo][num_carac] += 1
+					if dup[algo][num_carac] == 0:
+						dup[algo][num_carac] = 2
+					else:
+						dup[algo][num_carac] += 1
 				code[algo][num_carac][c] = code[algo][num_carac].get(c,0) + 1
 
 		# buscar duplicados
-		print "len %d" % len(code[algo][num_carac])
-		print "duplicados: %d" % dup[algo][num_carac]
+		print "%d caracteres - puntos: %d - valores del codigo %d - duplicados: %d" % (num_carac,num_puntos,len(code[algo][num_carac]),dup[algo][num_carac])
