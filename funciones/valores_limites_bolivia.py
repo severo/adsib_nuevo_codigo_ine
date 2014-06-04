@@ -8,9 +8,7 @@
 #  sudo chown root:staff /usr/local/lib/python2.7/dist-packages/mlocs
 #  sudo rm -rf build
 
-import os
-from osgeo import ogr
-import osr
+import csv
 import geohash
 import math
 import matplotlib.pyplot as plt
@@ -18,6 +16,9 @@ import matplotlib.ticker as tick
 import mgrs
 import mlocs
 import numpy as np
+from osgeo import ogr
+import os
+import osr
 
 def transf_wgs84_lambert(sentido=0):
 	# WGS84
@@ -94,12 +95,19 @@ def codigos_ine_bolivia(poly_bolivia_lambert):
 	return (vx,vy,vr,vtita,vz)
 
 # Calcula el codigo INE que pasa por un punto
-def codigo_ine(lon,lat,nombre,num_carac):
+def codigo_ine(lon,lat,nombre,num_carac,simple=False):
 
 	if num_carac != 9:
-		return  '',float('NaN'),float('NaN'),float('NaN')
+		if simple:
+			return ''
+		else:
+			return '',float('NaN'),float('NaN'),float('NaN')
 
 	(r,tita,z) = codigo_ine_wgs84(lon,lat)
+
+	if simple:
+		return r
+
 
 	## Generar un SHP con esta franja
 	drv = ogr.GetDriverByName("ESRI Shapefile")
@@ -170,8 +178,11 @@ def codigo_ine(lon,lat,nombre,num_carac):
 	return z,superficie,largo,ancho
 
 # Calcula el geohash de un punto
-def codigo_geohash(lon,lat,nombre,num_carac):
+def codigo_geohash(lon,lat,nombre,num_carac,simple=False):
 	hashcode = geohash.encode(lat,lon,num_carac)
+
+	if simple:
+		return hashcode
 
 	## Generar un SHP
 	drv = ogr.GetDriverByName("ESRI Shapefile")
@@ -227,7 +238,7 @@ def codigo_geohash(lon,lat,nombre,num_carac):
 	return hashcode,superficie,ns,oe
 
 # Calcula el codigo MGRS de un punto
-def codigo_mgrs(lon,lat,nombre,num_carac):
+def codigo_mgrs(lon,lat,nombre,num_carac,simple=False):
 	m = mgrs.MGRS()
 
 	tabla_precision = {5:0,7:1,9:2,11:3,13:4,15:5}
@@ -235,10 +246,16 @@ def codigo_mgrs(lon,lat,nombre,num_carac):
 	tabla_km = {5:100000,7:10000,9:1000,11:100,13:10,15:1}
 
 	if num_carac not in tabla_precision:
-		return '',float('NaN'),float('NaN'),float('NaN')
+		if simple:
+			return ''
+		else:
+			return '',float('NaN'),float('NaN'),float('NaN')
 
 	# Nota: ponemos precision=2 para llegar a un codigo de 9 caracteres
 	mgrscode = m.toMGRS(lat,lon,True,tabla_precision[num_carac])
+
+	if simple:
+		return mgrscode
 
 	centro = m.toLatLon(mgrscode)
 	pt_centro = ogr.Geometry(ogr.wkbPoint)
@@ -302,7 +319,7 @@ def codigo_mgrs(lon,lat,nombre,num_carac):
 	return mgrscode,superficie,ns,oe
 	
 # Calcula el codigo MLOCS (Maidenhead Locator System) de un punto
-def codigo_mlocs(lon,lat,nombre,num_carac):
+def codigo_mlocs(lon,lat,nombre,num_carac,simple=False):
 
 	tabla_precision = {2:1,4:2,6:3,8:4,10:5,12:6,14:7}
 	# Ver http://en.wikipedia.org/wiki/Maidenhead_Locator_System#Description_of_the_system
@@ -310,9 +327,15 @@ def codigo_mlocs(lon,lat,nombre,num_carac):
 	tabla_grados_lon = {2:20.0, 4:20.0/10, 6:20.0/(10*24), 8:20.0/(10*24*10), 10:20.0/(10*24*10*24), 12:20.0/(10*24*10*24*10), 14:10.0/(10*24*10*24*10*24)}
 
 	if num_carac not in tabla_precision:
-		return '',float('NaN'),float('NaN'),float('NaN')
+		if simple:
+			return ''
+		else:
+			return '',float('NaN'),float('NaN'),float('NaN')
 
 	mlocscode = mlocs.toMaiden([lat,lon],tabla_precision[num_carac])
+
+	if simple:
+		return mlocscode
 
 	centro = mlocs.toLoc(mlocscode)
 	x_centro = centro[1]
@@ -375,15 +398,15 @@ def codigo_mlocs(lon,lat,nombre,num_carac):
 
 	return mlocscode,superficie,ns,oe
 
-def codigo(algo,lon,lat,nombre,num_carac):
+def codigo(algo,lon,lat,nombre,num_carac,simple=False):
 	if algo == "geohash":
-		return codigo_geohash(lon,lat,nombre,num_carac)
+		return codigo_geohash(lon,lat,nombre,num_carac,simple)
 	elif algo == "mgrs":
-		return codigo_mgrs(lon,lat,nombre,num_carac)
+		return codigo_mgrs(lon,lat,nombre,num_carac,simple)
 	elif algo == "mlocs":
-		return codigo_mlocs(lon,lat,nombre,num_carac)
+		return codigo_mlocs(lon,lat,nombre,num_carac,simple)
 	elif algo == "ine":
-		return codigo_ine(lon,lat,nombre,num_carac)
+		return codigo_ine(lon,lat,nombre,num_carac,simple)
 
 def cargar_capitales():
 	# Abrir el archivo
@@ -492,3 +515,55 @@ plt.grid(True)
 
 #plt.show()
 plt.savefig("../resultados/precision_codigos.png",format="png")
+
+## Busqueda de duplicados
+
+# cargar los dos archivos csv de manzanas y localidades
+
+code = {}
+dup = {}
+
+for algo in ['ine','geohash','mgrs','mlocs']:
+	print algo
+	if algo not in code:
+		code[algo] = {}
+	if algo not in dup:
+		dup[algo] = {}
+
+	for num_carac in range(0,14):
+		print num_carac
+		for row in csv.DictReader(file('../datos/INE/localidades.csv'),delimiter=','):
+			lat = float(row['Y'])
+			lon = float(row['X'])
+
+			c = codigo(algo,lon,lat,"test",num_carac,True)
+
+			if num_carac not in code[algo]:
+				code[algo][num_carac] = {}
+			if num_carac not in dup[algo]:
+				dup[algo][num_carac] = 0
+
+			if c:
+				if c in code[algo][num_carac]:
+					dup[algo][num_carac] += 1
+				code[algo][num_carac][c] = code[algo][num_carac].get(c,0) + 1
+
+		for row in csv.DictReader(file('../datos/INE/manzanas.csv'),delimiter=','):
+			lat = float(row['lat'])
+			lon = float(row['long'])
+
+			c = codigo(algo,lon,lat,"test",num_carac,True)
+
+			if num_carac not in code[algo]:
+				code[algo][num_carac] = {}
+			if num_carac not in dup[algo]:
+				dup[algo][num_carac] = 0
+
+			if c:
+				if c in code[algo][num_carac]:
+					dup[algo][num_carac] += 1
+				code[algo][num_carac][c] = code[algo][num_carac].get(c,0) + 1
+
+		# buscar duplicados
+		print "len %d" % len(code[algo][num_carac])
+		print "duplicados: %d" % dup[algo][num_carac]
