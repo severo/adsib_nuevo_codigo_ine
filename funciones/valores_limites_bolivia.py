@@ -3,6 +3,10 @@
 # instalar las librerias python mgrs y mlocs:
 #  sudo pip install mgrs
 #  sudo pip install mlocs
+# Hay un problema con la instalacion de mlocs, para terminar:
+#  sudo mv build/mlocs/Library/Python/2.7/site-packages/mlocs /usr/local/lib/python2.7/dist-packages/
+#  sudo chown root:staff /usr/local/lib/python2.7/dist-packages/mlocs
+#  sudo rm -rf build
 import os
 from osgeo import ogr
 import osr
