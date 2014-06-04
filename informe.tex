@@ -568,6 +568,32 @@ puntos totalmente separados geográficamente.
 
 \section{Conclusión y recomendaciones}
 
+El código en lenguaje Python utilizado para todos los cálculos de
+este informe está disponible en el repositorio de código siguiente:
+\url
+{https://rednegra.net/gitlab/adsib/nuevo_codigo_ine/tree/master}. Se
+puede descargar el código y ejecutarlo para verificar la justeza de
+los resultados.
 
+En base a varios criterios definidos en la sección~\ref
+{sec:problematica}, evaluamos que el código propuesto por el equipo
+técnico del INE tiene varias características que pueden ser
+problemáticas: imposibilidad de encontrar el punto de origen a
+partir del código, posibilidad que dos puntos totalmente separados
+geográficamente tengan el mismo código, complejidad alta del
+algoritmo de cálculo, imposibilidad de configurar un nivel de
+precisión, un número de caracteres fijado arbitrariamente entre 8 y 9
+caracteres.
+
+Recomendamos se estudien otros códigos como el Geohash, el MGRS y el
+MLOCS, en particular pensamos que el Geohash podría ser un excelente
+candidato para codificar las localidades de Bolivia. En efecto, el
+código Geohash permite alcanzar un nivel de precisión alto con pocos
+caracteres, cada nuevo carácter aumenta el nivel de precisión, se
+puede encontrar el punto de origen a partir del código, con un margen
+de error correspondiendo al tamaño del código, el algoritmo de
+cálculo es muy rápido a partir de los datos de latitud y longitud.
+Finalmente, existe todo un ecosistema de herramientas para manejar el
+código Geohash.
 
 \end{document}
